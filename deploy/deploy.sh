@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 DEPLOY_DIR="/opt/mypay-wallets"
-REPO_URL="https://github.com/YOUR_USERNAME/mypay-wallets.git"  # Update this
+REPO_URL="https://github.com/hasaniqbal-lead/mypay-wallet-onetime.git"
 DOMAIN="wallets.mypay.mx"
 
 echo -e "${GREEN}=====================================${NC}"
