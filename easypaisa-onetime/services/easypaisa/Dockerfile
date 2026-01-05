@@ -16,8 +16,8 @@ COPY src ./src
 # Production stage
 FROM node:18-alpine
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init for proper signal handling and ca-certificates for HTTPS
+RUN apk add --no-cache dumb-init ca-certificates
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
