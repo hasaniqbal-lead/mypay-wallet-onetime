@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(docker compose build:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(npm install)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(docker logs:*)",
+      "Bash(ssh:*)"
+    ]
+  }
+}

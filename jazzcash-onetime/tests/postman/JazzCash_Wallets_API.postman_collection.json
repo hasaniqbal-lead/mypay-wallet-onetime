@@ -1,0 +1,206 @@
+{
+  "info": {
+    "name": "MyPay JazzCash Wallets API",
+    "description": "JazzCash MWALLET one-time payment API collection for testing.\n\nEndpoint: POST /api/v1/jazzcash/charge\nHealth: GET /health\n\nAuthentication: X-Api-Key header",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the JazzCash Wallets API service is running and healthy."
+      },
+      "response": []
+    },
+    {
+      "name": "JazzCash Charge (Success)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"JC-{{$timestamp}}\",\n  \"amount\": 100.00,\n  \"mobile\": \"03123456789\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/jazzcash/charge",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "jazzcash", "charge"]
+        },
+        "description": "Initiate a JazzCash MWALLET transaction. Requires:\n- orderId: Unique transaction reference\n- amount: Transaction amount in PKR (e.g., 100.00)\n- mobile: Customer mobile number (03XXXXXXXXX format)\n\nReturns transaction status with JazzCash response details."
+      },
+      "response": []
+    },
+    {
+      "name": "JazzCash Charge (Idempotency Test)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"JC-DUPLICATE-TEST\",\n  \"amount\": 50.00,\n  \"mobile\": \"03123456789\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/jazzcash/charge",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "jazzcash", "charge"]
+        },
+        "description": "Test idempotency - send the same orderId twice.\n\nFirst call: Creates new transaction\nSecond call: Returns existing transaction from DB without calling JazzCash again"
+      },
+      "response": []
+    },
+    {
+      "name": "JazzCash Charge (Invalid Mobile)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"JC-{{$timestamp}}\",\n  \"amount\": 100.00,\n  \"mobile\": \"0412345678\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/jazzcash/charge",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "jazzcash", "charge"]
+        },
+        "description": "Test validation - mobile number must be in 03XXXXXXXXX format.\n\nExpected: 400 Bad Request with validation error"
+      },
+      "response": []
+    },
+    {
+      "name": "JazzCash Charge (Missing API Key)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"JC-{{$timestamp}}\",\n  \"amount\": 100.00,\n  \"mobile\": \"03123456789\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/jazzcash/charge",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "jazzcash", "charge"]
+        },
+        "description": "Test authentication - no X-Api-Key header.\n\nExpected: 401 Unauthorized"
+      },
+      "response": []
+    },
+    {
+      "name": "JazzCash Charge (Invalid Amount)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"JC-{{$timestamp}}\",\n  \"amount\": -100.00,\n  \"mobile\": \"03123456789\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/jazzcash/charge",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "jazzcash", "charge"]
+        },
+        "description": "Test validation - amount must be positive.\n\nExpected: 400 Bad Request with validation error"
+      },
+      "response": []
+    },
+    {
+      "name": "JazzCash Charge (Large Amount)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"JC-LARGE-{{$timestamp}}\",\n  \"amount\": 50000.00,\n  \"mobile\": \"03123456789\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/jazzcash/charge",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "jazzcash", "charge"]
+        },
+        "description": "Test large transaction amount (PKR 50,000).\n\nNote: JazzCash may have transaction limits."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4004",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "test-api-key",
+      "type": "string"
+    }
+  ]
+}
+

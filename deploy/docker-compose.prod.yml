@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # ================================
+  # Shared PostgreSQL Database
+  # ================================
+  wallets-postgres:
+    image: postgres:15-alpine
+    container_name: wallets-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - wallets-postgres-data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    networks:
+      - wallets-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================
+  # Easypaisa API Service
+  # ================================
+  easypaisa-api:
+    build:
+      context: ../easypaisa-onetime/services/easypaisa
+      dockerfile: Dockerfile
+    image: mypay-easypaisa-api:latest
+    container_name: easypaisa-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4003
+      WALLETS_API_KEY: ${WALLETS_API_KEY}
+      EASYPAY_BASE_URL: ${EASYPAY_BASE_URL:-https://easypay.easypaisa.com.pk}
+      EASYPAY_USERNAME: ${EASYPAY_USERNAME}
+      EASYPAY_PASSWORD: ${EASYPAY_PASSWORD}
+      EASYPAY_STORE_ID: ${EASYPAY_STORE_ID}
+      EASYPAY_DEFAULT_EMAIL: ${EASYPAY_DEFAULT_EMAIL:-noreply@mypay.mx}
+      DB_HOST: wallets-postgres
+      DB_PORT: 5432
+      DB_NAME: easypaisa_db
+      DB_USER: easypaisa_user
+      DB_PASSWORD: ${EASYPAISA_DB_PASSWORD}
+    expose:
+      - "4003"
+    depends_on:
+      wallets-postgres:
+        condition: service_healthy
+    networks:
+      - wallets-internal
+      - wallets-external
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4003/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ================================
+  # JazzCash API Service
+  # ================================
+  jazzcash-api:
+    build:
+      context: ../jazzcash-onetime/services/jazzcash
+      dockerfile: Dockerfile
+    image: mypay-jazzcash-api:latest
+    container_name: jazzcash-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4004
+      WALLETS_API_KEY: ${WALLETS_API_KEY}
+      JAZZCASH_BASE_URL: ${JAZZCASH_BASE_URL:-https://payments.jazzcash.com.pk}
+      JAZZCASH_MERCHANT_ID: ${JAZZCASH_MERCHANT_ID}
+      JAZZCASH_PASSWORD: ${JAZZCASH_PASSWORD}
+      JAZZCASH_INTEGRITY_SALT: ${JAZZCASH_INTEGRITY_SALT}
+      JAZZCASH_DEFAULT_EMAIL: ${JAZZCASH_DEFAULT_EMAIL:-noreply@mypay.mx}
+      DB_HOST: wallets-postgres
+      DB_PORT: 5432
+      DB_NAME: jazzcash_db
+      DB_USER: jazzcash_user
+      DB_PASSWORD: ${JAZZCASH_DB_PASSWORD}
+    expose:
+      - "4004"
+    depends_on:
+      wallets-postgres:
+        condition: service_healthy
+    networks:
+      - wallets-internal
+      - wallets-external
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4004/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+# ================================
+# Volumes
+# ================================
+volumes:
+  wallets-postgres-data:
+    driver: local
+
+# ================================
+# Networks
+# ================================
+networks:
+  wallets-internal:
+    driver: bridge
+    internal: true  # No external access - only for DB communication
+  wallets-external:
+    driver: bridge  # For nginx reverse proxy access

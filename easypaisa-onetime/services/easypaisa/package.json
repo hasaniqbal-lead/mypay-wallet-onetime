@@ -1,0 +1,31 @@
+{
+  "name": "wallets-api",
+  "version": "1.0.0",
+  "description": "MyPay Wallets API gateway for Easypaisa (production-style, local dev)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [
+    "mypay",
+    "wallets",
+    "easypaisa",
+    "payments"
+  ],
+  "author": "MyPay",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.19.2",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
+

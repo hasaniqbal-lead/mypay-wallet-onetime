@@ -1,0 +1,157 @@
+{
+  "info": {
+    "_postman_id": "mypay-wallets-easypaisa-2025",
+    "name": "MyPay Wallets API - Easypaisa",
+    "description": "**MyPay Wallets API - Easypaisa Gateway**\n\n## Production URLs\n- **Production**: http://wallets.mycodigital.io:8888/api/v1\n- **Local Dev**: http://localhost:4003/api/v1\n\n## Authentication\n- Header: `X-Api-Key`\n- Value: Your Wallets API key (get from database or use `test-wallets-key` for local)\n\n## Test Data\n\n### Mobile Numbers\n- **03097524704** - Easypaisa production test number\n\n### Order IDs\n- Use unique order IDs for each test\n- Format: `TEST-{timestamp}` or `PROD-{timestamp}`\n\n## Status Codes\n- `200` - Transaction approved (PAID)\n- `202` - Transaction pending (customer confirmation required)\n- `400` - Transaction failed or invalid request\n- `401` - Invalid API key\n- `500` - Internal server error\n\n**Last Updated**: December 16, 2025",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url_local",
+      "value": "http://localhost:4003/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "base_url_prod",
+      "value": "http://wallets.mycodigital.io:8888/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "test-wallets-key",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url_local}}/health",
+          "host": ["{{base_url_local}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the Wallets API service is running and healthy."
+      }
+    },
+    {
+      "name": "Easypaisa MA Charge (Local)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 202) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.orderId) {",
+              "        pm.collectionVariables.set('last_order_id', jsonData.orderId);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"LOCAL-{{$timestamp}}\",\n  \"amount\": 100.00,\n  \"mobile\": \"03097524704\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url_local}}/easypaisa/charge",
+          "host": ["{{base_url_local}}"],
+          "path": ["easypaisa", "charge"]
+        },
+        "description": "Initiate an Easypaisa MA charge via local development server.\n\n**Request Body:**\n- `orderId`: Unique merchant order reference\n- `amount`: Amount in PKR (must be > 0)\n- `mobile`: Customer's Easypaisa mobile number (03XXXXXXXXX format)\n\n**Response:**\n- `status`: APPROVED | PENDING | FAILED\n- `meta`: Easypaisa response details"
+      }
+    },
+    {
+      "name": "Easypaisa MA Charge (Production)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 202) {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.orderId) {",
+              "        pm.collectionVariables.set('last_order_id', jsonData.orderId);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"PROD-{{$timestamp}}\",\n  \"amount\": 10.00,\n  \"mobile\": \"03097524704\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url_prod}}/easypaisa/charge",
+          "host": ["{{base_url_prod}}"],
+          "path": ["easypaisa", "charge"]
+        },
+        "description": "Initiate an Easypaisa MA charge via production server (wallets.mycodigital.io).\n\n**⚠️ Production endpoint** - Real Easypaisa transactions.\n\n**Request Body:**\n- `orderId`: Unique merchant order reference\n- `amount`: Amount in PKR (use small amounts for testing)\n- `mobile`: Customer's Easypaisa mobile number"
+      }
+    },
+    {
+      "name": "Easypaisa MA Charge - Idempotency Test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{api_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"orderId\": \"IDEMPOTENT-TEST-001\",\n  \"amount\": 50.00,\n  \"mobile\": \"03097524704\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url_local}}/easypaisa/charge",
+          "host": ["{{base_url_local}}"],
+          "path": ["easypaisa", "charge"]
+        },
+        "description": "Test idempotency by submitting the same orderId multiple times.\n\nFirst call: Creates new transaction\nSecond call: Returns existing transaction\n\n**Expected**: Same response for duplicate orderId"
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,498 @@
+{
+  "info": {
+    "_postman_id": "mypay-wallets-merchant-api-2026",
+    "name": "MyPay Wallets - Merchant API",
+    "description": "**MyPay Wallets Platform - Merchant API Collection**\n\n## Overview\nMyPay provides a unified API for wallet payments in Pakistan.\n\n## Base URLs\n\n### Production\n- **Unified**: https://wallets.mypay.mx/api/v1\n\n### Local Development\n- **Easypaisa**: http://localhost:4003/api/v1\n- **JazzCash**: http://localhost:4004/api/v1\n\n## Authentication\n\nHeader: `X-Api-Key`\n- Test Key: `test-wallets-key`\n- Production: Contact support@mypay.mx\n\n## Request Format\n\n```json\n{\n  \"reference\": \"YOUR-ORDER-REF\",\n  \"amount\": 100.00,\n  \"mobile\": \"03XXXXXXXXX\",\n  \"paymentMethod\": \"easypaisa|jazzcash\"\n}\n```\n\n## Response Format\n\n```json\n{\n  \"success\": true/false,\n  \"reference\": \"YOUR-ORDER-REF\",\n  \"status\": \"SUCCESS|PENDING|FAILED\",\n  \"paymentMethod\": \"easypaisa|jazzcash\",\n  \"amount\": 100.00,\n  \"currency\": \"PKR\",\n  \"transactionId\": \"PROVIDER_TXN_ID\"\n}\n```\n\n## Status Codes\n\n- 200: Transaction successful\n- 202: Pending (awaiting customer confirmation)\n- 400: Bad request or transaction failed\n- 401: Invalid/missing API key\n\n## Test Data\n\n- Mobile: 03097524704\n- Amount: PKR 5 (recommended for testing)\n\n**Version**: 2.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 2,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "base_url_prod",
+      "value": "https://wallets.mypay.mx/api/v1",
+      "type": "string",
+      "description": "Production API base URL"
+    },
+    {
+      "key": "easypaisa_local",
+      "value": "http://localhost:4003/api/v1",
+      "type": "string",
+      "description": "Local Easypaisa service"
+    },
+    {
+      "key": "jazzcash_local",
+      "value": "http://localhost:4004/api/v1",
+      "type": "string",
+      "description": "Local JazzCash service"
+    },
+    {
+      "key": "api_key",
+      "value": "test-wallets-key",
+      "type": "string",
+      "description": "Your merchant API key"
+    },
+    {
+      "key": "test_mobile",
+      "value": "03097524704",
+      "type": "string",
+      "description": "Test mobile number"
+    },
+    {
+      "key": "reference",
+      "value": "",
+      "type": "string",
+      "description": "Auto-generated unique reference"
+    }
+  ],
+  "item": [
+    {
+      "name": "🟢 Easypaisa APIs",
+      "item": [
+        {
+          "name": "Health Check (Local)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4003/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4003",
+              "path": ["health"]
+            },
+            "description": "**Check Service Health**\n\nVerify that the Easypaisa service is running and healthy.\n\n### Response\n```json\n{\n  \"status\": \"ok\",\n  \"service\": \"wallets-api\",\n  \"provider\": \"easypaisa\",\n  \"timestamp\": \"2025-12-17T10:00:00.000Z\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Easypaisa Charge (Local)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ref = 'EP-' + Date.now();",
+                  "pm.collectionVariables.set('reference', ref);",
+                  "console.log('Generated reference:', ref);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 202', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "});",
+                  "",
+                  "pm.test('Response has required fields', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('reference');",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData).to.have.property('paymentMethod');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "});",
+                  "",
+                  "console.log('Response:', pm.response.json());"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text",
+                "description": "Merchant API key"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{reference}}\",\n  \"amount\": 5.00,\n  \"mobile\": \"{{test_mobile}}\",\n  \"paymentMethod\": \"easypaisa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{easypaisa_local}}/charge",
+              "host": ["{{easypaisa_local}}"],
+              "path": ["charge"]
+            },
+            "description": "**Initiate Easypaisa Payment (Local)**\n\n### Request Body\n\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `reference` | string | Yes | Your unique order reference |\n| `amount` | number | Yes | Amount in PKR (must be > 0) |\n| `mobile` | string | Yes | Customer mobile number (03XXXXXXXXX) |\n| `paymentMethod` | string | Yes | Must be \"easypaisa\" |\n\n### Response Statuses\n\n- **SUCCESS** (200): Payment completed\n- **PENDING** (202): Awaiting customer confirmation\n- **FAILED** (400): Payment rejected"
+          },
+          "response": []
+        },
+        {
+          "name": "Easypaisa Charge (Production)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ref = 'EP-PROD-' + Date.now();",
+                  "pm.collectionVariables.set('reference', ref);",
+                  "console.log('Generated reference:', ref);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{reference}}\",\n  \"amount\": 5.00,\n  \"mobile\": \"{{test_mobile}}\",\n  \"paymentMethod\": \"easypaisa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url_prod}}/charge",
+              "host": ["{{base_url_prod}}"],
+              "path": ["charge"]
+            },
+            "description": "**Production Easypaisa Payment**\n\nWARNING: Real transactions - use small amounts (PKR 5 recommended)."
+          },
+          "response": []
+        },
+        {
+          "name": "Easypaisa - Idempotency Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"IDEMPOTENT-EP-001\",\n  \"amount\": 5.00,\n  \"mobile\": \"{{test_mobile}}\",\n  \"paymentMethod\": \"easypaisa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{easypaisa_local}}/charge",
+              "host": ["{{easypaisa_local}}"],
+              "path": ["charge"]
+            },
+            "description": "**Test Idempotency**\n\nRun twice - second call returns existing transaction without duplicate charge."
+          },
+          "response": []
+        },
+        {
+          "name": "Easypaisa - Invalid Mobile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"INVALID-{{$timestamp}}\",\n  \"amount\": 5.00,\n  \"mobile\": \"0123456789\",\n  \"paymentMethod\": \"easypaisa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{easypaisa_local}}/charge",
+              "host": ["{{easypaisa_local}}"],
+              "path": ["charge"]
+            },
+            "description": "Expected: 400 Bad Request - invalid mobile format"
+          },
+          "response": []
+        },
+        {
+          "name": "Easypaisa - Missing API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"NO-AUTH-{{$timestamp}}\",\n  \"amount\": 5.00,\n  \"mobile\": \"{{test_mobile}}\",\n  \"paymentMethod\": \"easypaisa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{easypaisa_local}}/charge",
+              "host": ["{{easypaisa_local}}"],
+              "path": ["charge"]
+            },
+            "description": "Expected: 401 Unauthorized"
+          },
+          "response": []
+        }
+      ],
+      "description": "**Easypaisa Payment APIs**\n\nIntegrate Easypaisa Mobile Account payments into your platform.\n\n### Features\n- Mobile Account (MA) payments\n- Real-time payment confirmation\n- Idempotent API calls\n- Comprehensive validation\n\n### Use Cases\n- E-commerce checkouts\n- Bill payments\n- Subscription payments\n- P2P transfers",
+      "event": []
+    },
+    {
+      "name": "🔵 JazzCash APIs",
+      "item": [
+        {
+          "name": "Health Check (Local)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4004/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4004",
+              "path": ["health"]
+            },
+            "description": "**Check Service Health**\n\nVerify that the JazzCash service is running and healthy.\n\n### Response\n```json\n{\n  \"status\": \"ok\",\n  \"service\": \"wallets-api\",\n  \"provider\": \"jazzcash\",\n  \"timestamp\": \"2025-12-17T10:00:00.000Z\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "JazzCash Charge (Local)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ref = 'JC-' + Date.now();",
+                  "pm.collectionVariables.set('reference', ref);",
+                  "console.log('Generated reference:', ref);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 202', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "});",
+                  "",
+                  "pm.test('Response has required fields', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('reference');",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData).to.have.property('paymentMethod');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "});",
+                  "",
+                  "console.log('Response:', pm.response.json());"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text",
+                "description": "Merchant API key"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{reference}}\",\n  \"amount\": 5.00,\n  \"mobile\": \"{{test_mobile}}\",\n  \"paymentMethod\": \"jazzcash\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{jazzcash_local}}/charge",
+              "host": ["{{jazzcash_local}}"],
+              "path": ["charge"]
+            },
+            "description": "**Initiate JazzCash Payment (Local)**\n\n### Request Body\n\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `reference` | string | Yes | Your unique order reference |\n| `amount` | number | Yes | Amount in PKR (must be > 0) |\n| `mobile` | string | Yes | Customer mobile number (03XXXXXXXXX) |\n| `paymentMethod` | string | Yes | Must be \"jazzcash\" |\n\n### Response Statuses\n\n- **SUCCESS** (200): Payment completed\n- **PENDING** (202): Awaiting customer confirmation\n- **FAILED** (400): Payment rejected"
+          },
+          "response": []
+        },
+        {
+          "name": "JazzCash Charge (Production)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ref = 'JC-PROD-' + Date.now();",
+                  "pm.collectionVariables.set('reference', ref);",
+                  "console.log('Generated reference:', ref);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{reference}}\",\n  \"amount\": 5.00,\n  \"mobile\": \"{{test_mobile}}\",\n  \"paymentMethod\": \"jazzcash\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url_prod}}/charge",
+              "host": ["{{base_url_prod}}"],
+              "path": ["charge"]
+            },
+            "description": "**Production JazzCash Payment**\n\nWARNING: Real transactions - use small amounts (PKR 5 recommended)."
+          },
+          "response": []
+        },
+        {
+          "name": "JazzCash - Idempotency Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"IDEMPOTENT-JC-001\",\n  \"amount\": 5.00,\n  \"mobile\": \"{{test_mobile}}\",\n  \"paymentMethod\": \"jazzcash\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{jazzcash_local}}/charge",
+              "host": ["{{jazzcash_local}}"],
+              "path": ["charge"]
+            },
+            "description": "**Test Idempotency**\n\nRun twice - second call returns existing transaction."
+          },
+          "response": []
+        },
+        {
+          "name": "JazzCash - Invalid Mobile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{api_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"JC-INVALID-{{$timestamp}}\",\n  \"amount\": 5.00,\n  \"mobile\": \"invalid-number\",\n  \"paymentMethod\": \"jazzcash\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{jazzcash_local}}/charge",
+              "host": ["{{jazzcash_local}}"],
+              "path": ["charge"]
+            },
+            "description": "Expected: 400 Bad Request - invalid mobile format"
+          },
+          "response": []
+        }
+      ],
+      "description": "JazzCash Mobile Wallet payment endpoints"
+    }
+  ]
+}
+

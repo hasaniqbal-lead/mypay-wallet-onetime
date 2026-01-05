@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  jazzcash-api:
+    build:
+      context: ../services/jazzcash
+      dockerfile: Dockerfile
+    container_name: jazzcash-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=4004
+      - WALLETS_API_KEY=${WALLETS_API_KEY}
+      - JAZZCASH_BASE_URL=${JAZZCASH_BASE_URL}
+      - JAZZCASH_MERCHANT_ID=${JAZZCASH_MERCHANT_ID}
+      - JAZZCASH_PASSWORD=${JAZZCASH_PASSWORD}
+      - JAZZCASH_INTEGRITY_SALT=${JAZZCASH_INTEGRITY_SALT}
+      - JAZZCASH_DEFAULT_EMAIL=${JAZZCASH_DEFAULT_EMAIL}
+      - DB_HOST=jazzcash-db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-jazzcash_db}
+      - DB_USER=${DB_USER:-jazzcash_user}
+      - DB_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "4004:4004"  # Expose for local testing
+    depends_on:
+      jazzcash-db:
+        condition: service_healthy
+    networks:
+      - jazzcash-network
+      - nginx-network  # Connect to nginx network for reverse proxy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4004/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  jazzcash-db:
+    image: postgres:15-alpine
+    container_name: jazzcash-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME:-jazzcash_db}
+      - POSTGRES_USER=${DB_USER:-jazzcash_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - jazzcash-db-data:/var/lib/postgresql/data
+      - ../services/jazzcash/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - jazzcash-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-jazzcash_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  jazzcash-db-data:
+    driver: local
+
+networks:
+  jazzcash-network:
+    driver: bridge
+  nginx-network:
+    external: true  # Assumes nginx network exists (created by your main docker-compose)
+
