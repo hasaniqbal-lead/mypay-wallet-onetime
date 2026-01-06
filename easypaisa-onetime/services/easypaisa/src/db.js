@@ -162,6 +162,82 @@ async function getTransactionByReference(reference, merchantId) {
 }
 
 /**
+ * Get transaction by provider transaction ID (our internal transactionId)
+ */
+async function getTransactionByProviderTxnId(providerTransactionId, merchantId) {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM transactions WHERE provider_transaction_id = $1 AND merchant_id = $2',
+      [providerTransactionId, merchantId]
+    );
+
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('[DB] Error getting transaction by provider txn id:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all pending transactions for retry (older than specified seconds)
+ */
+async function getPendingTransactionsForRetry(olderThanSeconds = 20) {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM transactions
+       WHERE status = 'PENDING'
+       AND created_at < NOW() - INTERVAL '${olderThanSeconds} seconds'
+       AND (completed_at IS NULL)
+       ORDER BY created_at ASC
+       LIMIT 50`
+    );
+
+    return result.rows;
+  } catch (error) {
+    console.error('[DB] Error getting pending transactions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update transaction status by provider transaction ID
+ */
+async function updateTransactionByProviderTxnId(providerTransactionId, updates) {
+  const {
+    status,
+    providerResponseCode,
+    providerResponseDesc,
+    providerPayload,
+  } = updates;
+
+  try {
+    const result = await pool.query(
+      `UPDATE transactions
+       SET status = COALESCE($2, status),
+           provider_response_code = COALESCE($3, provider_response_code),
+           provider_response_desc = COALESCE($4, provider_response_desc),
+           provider_payload = COALESCE($5, provider_payload),
+           completed_at = CASE WHEN $2 IN ('SUCCESS', 'FAILED') THEN CURRENT_TIMESTAMP ELSE completed_at END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE provider_transaction_id = $1
+       RETURNING *`,
+      [
+        providerTransactionId,
+        status,
+        providerResponseCode,
+        providerResponseDesc,
+        providerPayload ? JSON.stringify(providerPayload) : null,
+      ]
+    );
+
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('[DB] Error updating transaction by provider txn id:', error);
+    throw error;
+  }
+}
+
+/**
  * Test database connection
  */
 async function testConnection() {
@@ -188,6 +264,9 @@ module.exports = {
   saveTransaction,
   updateTransactionStatus,
   getTransactionByReference,
+  getTransactionByProviderTxnId,
+  getPendingTransactionsForRetry,
+  updateTransactionByProviderTxnId,
   testConnection,
   closePool,
 };

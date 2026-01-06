@@ -2,6 +2,7 @@ const express = require('express');
 const config = require('./config');
 const { EasypaisaRestClient } = require('./easypaisa-rest-client');
 const db = require('./db');
+const { startScheduler } = require('./retry-scheduler');
 
 const app = express();
 const easypayClient = new EasypaisaRestClient();
@@ -221,6 +222,131 @@ app.post('/api/v1/charge', apiKeyAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/v1/inquire
+ *
+ * Inquire transaction status.
+ *
+ * Body:
+ * {
+ *   "transactionId": "44298883388"
+ * }
+ */
+app.post('/api/v1/inquire', apiKeyAuth, async (req, res) => {
+  try {
+    const { transactionId } = req.body || {};
+
+    // Validate transactionId
+    if (!transactionId || typeof transactionId !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'transactionId is required and must be a string',
+      });
+    }
+
+    const merchantId = req.merchant.merchant_id;
+
+    console.log(`[INQUIRE] Looking up transaction: transactionId=${transactionId}, merchantId=${merchantId}`);
+
+    // Look up transaction by provider transaction ID
+    const txn = await db.getTransactionByProviderTxnId(transactionId, merchantId);
+
+    if (!txn) {
+      return res.status(404).json({
+        success: false,
+        error: 'Transaction not found',
+        transactionId,
+      });
+    }
+
+    // If status is already terminal (SUCCESS or FAILED), return from DB
+    if (txn.status === 'SUCCESS' || txn.status === 'FAILED') {
+      return res.json({
+        success: true,
+        transactionId: txn.provider_transaction_id,
+        reference: txn.reference,
+        status: txn.status,
+        paymentMethod: txn.provider,
+        amount: parseFloat(txn.amount),
+        currency: txn.currency,
+        mobile: txn.mobile,
+        createdAt: txn.created_at,
+        updatedAt: txn.updated_at,
+        meta: {
+          providerResponseCode: txn.provider_response_code,
+          providerResponseDesc: txn.provider_response_desc,
+        },
+      });
+    }
+
+    // Status is PENDING, call provider inquiry API
+    console.log(`[INQUIRE] Transaction is PENDING, calling Easypaisa inquiry API for reference=${txn.reference}`);
+
+    try {
+      const inquiry = await easypayClient.inquireTransaction({ orderId: txn.reference });
+
+      // Map response to status
+      const status = mapEasypayStatus(inquiry.transactionStatus, inquiry.responseCode);
+
+      // Update DB if status changed
+      if (status.status !== txn.status) {
+        console.log(`[INQUIRE] Status changed from ${txn.status} to ${status.status}, updating DB`);
+        await db.updateTransactionByProviderTxnId(transactionId, {
+          status: status.status,
+          providerResponseCode: inquiry.responseCode,
+          providerResponseDesc: inquiry.responseDesc,
+          providerPayload: inquiry.raw,
+        });
+      }
+
+      return res.json({
+        success: true,
+        transactionId: txn.provider_transaction_id,
+        reference: txn.reference,
+        status: status.status,
+        paymentMethod: txn.provider,
+        amount: parseFloat(txn.amount),
+        currency: txn.currency,
+        mobile: txn.mobile,
+        createdAt: txn.created_at,
+        updatedAt: new Date().toISOString(),
+        meta: {
+          providerResponseCode: inquiry.responseCode,
+          providerResponseDesc: inquiry.responseDesc,
+        },
+      });
+    } catch (inquiryErr) {
+      console.error(`[INQUIRE] Provider inquiry failed:`, inquiryErr.message);
+
+      // Return current DB status if inquiry fails
+      return res.json({
+        success: true,
+        transactionId: txn.provider_transaction_id,
+        reference: txn.reference,
+        status: txn.status,
+        paymentMethod: txn.provider,
+        amount: parseFloat(txn.amount),
+        currency: txn.currency,
+        mobile: txn.mobile,
+        createdAt: txn.created_at,
+        updatedAt: txn.updated_at,
+        meta: {
+          providerResponseCode: txn.provider_response_code,
+          providerResponseDesc: txn.provider_response_desc,
+          inquiryError: inquiryErr.message,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[INQUIRE] Error:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: err.message,
+    });
+  }
+});
+
+/**
  * Map Easypaisa response/status to our clean status model.
  */
 function mapEasypayStatus(txnStatus, responseCode) {
@@ -277,10 +403,12 @@ function mapStatusFromDb(dbStatus) {
   return { httpStatus: 202, success: true };
 }
 
-// Test database connection on startup
+// Test database connection on startup and start retry scheduler
 db.testConnection().then(connected => {
   if (connected) {
     console.log('[DB] Database connection established');
+    // Start background retry scheduler for pending transactions
+    startScheduler();
   } else {
     console.warn('[DB] Database connection failed - running without persistence');
   }
@@ -289,10 +417,12 @@ db.testConnection().then(connected => {
 // Start server
 app.listen(config.port, () => {
   console.log('===============================================');
-  console.log(' MyPay Wallets API - Direct Charge Service     ');
+  console.log(' MyPay Wallets API - Easypaisa Service         ');
   console.log('-----------------------------------------------');
   console.log(` Port:        ${config.port}`);
-  console.log(' Endpoint:    POST /api/v1/charge');
+  console.log(' Endpoints:');
+  console.log('   POST /api/v1/charge   - Initiate payment');
+  console.log('   POST /api/v1/inquire  - Check payment status');
   console.log(' Health:      GET  /health');
   console.log(' Auth header: X-Api-Key: <YOUR_API_KEY>');
   console.log('===============================================');

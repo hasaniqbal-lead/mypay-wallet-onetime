@@ -9,7 +9,9 @@
       "Bash(timeout:*)",
       "Bash(ping:*)",
       "Bash(docker logs:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

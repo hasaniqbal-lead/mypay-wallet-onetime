@@ -23,6 +23,7 @@ const config = {
     username: required('EASYPAY_USERNAME'),
     password: required('EASYPAY_PASSWORD'),
     storeId: required('EASYPAY_STORE_ID'),
+    accountNum: required('EASYPAY_ACCOUNT_NUM'),
     defaultEmail: process.env.EASYPAY_DEFAULT_EMAIL || 'noreply@mypay.mx'
   },
 

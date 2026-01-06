@@ -181,16 +181,72 @@ class JazzCashRestClient {
   }
 
   /**
-   * Query transaction status
-   * 
-   * Note: JazzCash transaction inquiry would be a separate API endpoint
-   * This is a placeholder for future implementation
-   * 
-   * @param {string} transactionId
+   * Inquire transaction status via JazzCash REST API.
+   *
+   * Uses the PaymentInquiry endpoint to check transaction status.
+   *
+   * @param {Object} params
+   * @param {string} params.txnRefNo - The JazzCash transaction reference number (pp_TxnRefNo)
    * @returns {Promise<Object>}
    */
-  async queryTransaction(transactionId) {
-    throw new Error('JazzCash transaction query not implemented yet');
+  async inquireTransaction({ txnRefNo }) {
+    const url = `${this.baseUrl}/ApplicationAPI/API/PaymentInquiry/Inquire`;
+
+    // Build request parameters
+    const params = {
+      pp_MerchantID: this.merchantId,
+      pp_Password: this.password,
+      pp_TxnRefNo: txnRefNo,
+      pp_Version: this.version,
+    };
+
+    // Generate secure hash
+    const secureHash = this._generateSecureHash(params);
+    params.pp_SecureHash = secureHash;
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    console.log(`[JAZZCASH] Inquiry request: txnRefNo=${txnRefNo}`);
+
+    try {
+      const res = await axios.post(url, params, { headers, timeout: 30000 });
+      const data = res.data || {};
+
+      console.log(`[JAZZCASH] Inquiry Response: ${data.pp_ResponseCode} - ${data.pp_ResponseMessage}`);
+
+      return {
+        raw: data,
+        responseCode: data.pp_ResponseCode || null,
+        responseMessage: data.pp_ResponseMessage || null,
+        txnRefNo: data.pp_TxnRefNo || null,
+        txnStatus: data.pp_Status || data.pp_TxnStatus || null,
+        amount: data.pp_Amount || null,
+        billReference: data.pp_BillReference || null,
+      };
+    } catch (err) {
+      if (err.response) {
+        const data = err.response.data || {};
+        const code = data.pp_ResponseCode || null;
+        const msg = data.pp_ResponseMessage || err.message;
+
+        console.error(`[JAZZCASH] Inquiry error response: ${code} - ${msg}`);
+
+        const wrapped = new Error(`JazzCash inquiry error: ${msg}`);
+        wrapped.httpStatus = err.response.status;
+        wrapped.responseCode = code;
+        wrapped.responseMessage = msg;
+        wrapped.raw = data;
+        throw wrapped;
+      }
+
+      console.error(`[JAZZCASH] Inquiry network error: ${err.message}`);
+
+      const wrapped = new Error(`JazzCash inquiry network error: ${err.message}`);
+      wrapped.cause = err;
+      throw wrapped;
+    }
   }
 }
 
